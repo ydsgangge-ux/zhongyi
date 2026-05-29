@@ -1,0 +1,42 @@
+{
+    "春": {
+        "months": [2, 3, 4],
+        "organ": "肝",
+        "common_patterns": "肝阳上亢、肝气郁结、过敏",
+        "caution": "疏肝不可太猛，防升散太过",
+        "element": "木",
+        "diet_tendency": "宜食辛甘发散之品，少食酸收"
+    },
+    "夏": {
+        "months": [5, 6, 7],
+        "organ": "心",
+        "common_patterns": "暑热伤气、心火旺、暑湿困脾",
+        "caution": "慎用大热之品，注意护津",
+        "element": "火",
+        "diet_tendency": "宜食清热解暑之品，忌过食生冷"
+    },
+    "长夏": {
+        "months": [7, 8],
+        "organ": "脾",
+        "common_patterns": "脾虚湿困、湿热内蕴",
+        "caution": "化湿健脾为主，防苦寒败胃",
+        "element": "土",
+        "diet_tendency": "宜食健脾化湿之品，忌肥甘厚腻"
+    },
+    "秋": {
+        "months": [9, 10, 11],
+        "organ": "肺",
+        "common_patterns": "燥邪伤肺、肺阴不足",
+        "caution": "润燥养阴，慎用辛散",
+        "element": "金",
+        "diet_tendency": "宜食润燥养阴之品，忌辛温燥烈"
+    },
+    "冬": {
+        "months": [12, 1, 2],
+        "organ": "肾",
+        "common_patterns": "肾阳虚、寒凝血瘀",
+        "caution": "温补肾阳，冬病冬治",
+        "element": "水",
+        "diet_tendency": "宜食温补之品，忌寒凉"
+    }
+}

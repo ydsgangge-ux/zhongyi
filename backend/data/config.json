@@ -1,0 +1,20 @@
+{
+  "deepseek": {
+    "api_key": "sk-36782e8bb28f4dc49f0a13699cc6fc83",
+    "api_url": "https://api.deepseek.com",
+    "model": "deepseek-chat",
+    "temperature": 0.7,
+    "max_tokens": 5000
+  },
+  "claude": {
+    "api_key": "",
+    "api_url": "https://api.anthropic.com/v1/messages",
+    "model": "claude-sonnet-4-20250514",
+    "max_tokens": 1500
+  },
+  "system": {
+    "region_default": "",
+    "save_history": true,
+    "single_model_mode": false
+  }
+}

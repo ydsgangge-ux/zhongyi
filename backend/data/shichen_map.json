@@ -1,0 +1,74 @@
+{
+    "子时": {
+        "time_range": "23:00-01:00",
+        "meridian": "胆经",
+        "trigger": "失眠/易醒",
+        "clinical_significance": "胆经郁热或胆气虚"
+    },
+    "丑时": {
+        "time_range": "01:00-03:00",
+        "meridian": "肝经",
+        "trigger": "凌晨醒来/烦躁",
+        "clinical_significance": "肝血不足或肝火旺"
+    },
+    "寅时": {
+        "time_range": "03:00-05:00",
+        "meridian": "肺经",
+        "trigger": "咳嗽加重",
+        "clinical_significance": "肺经病变，宣降失常"
+    },
+    "卯时": {
+        "time_range": "05:00-07:00",
+        "meridian": "大肠经",
+        "trigger": "晨起腹泻",
+        "clinical_significance": "大肠虚寒或湿热"
+    },
+    "辰时": {
+        "time_range": "07:00-09:00",
+        "meridian": "胃经",
+        "trigger": "胃痛/食欲不振",
+        "clinical_significance": "胃气不和"
+    },
+    "巳时": {
+        "time_range": "09:00-11:00",
+        "meridian": "脾经",
+        "trigger": "乏力/腹胀",
+        "clinical_significance": "脾气虚弱"
+    },
+    "午时": {
+        "time_range": "11:00-13:00",
+        "meridian": "心经",
+        "trigger": "午后心慌/胸闷",
+        "clinical_significance": "心气不足或心火旺"
+    },
+    "未时": {
+        "time_range": "13:00-15:00",
+        "meridian": "小肠经",
+        "trigger": "小腹胀痛",
+        "clinical_significance": "小肠分清泌浊失常"
+    },
+    "申时": {
+        "time_range": "15:00-17:00",
+        "meridian": "膀胱经",
+        "trigger": "腰背酸痛/小便异常",
+        "clinical_significance": "膀胱气化不利"
+    },
+    "酉时": {
+        "time_range": "17:00-19:00",
+        "meridian": "肾经",
+        "trigger": "傍晚腰酸加重",
+        "clinical_significance": "肾虚，肾精不足"
+    },
+    "戌时": {
+        "time_range": "19:00-21:00",
+        "meridian": "心包经",
+        "trigger": "胸闷/心烦",
+        "clinical_significance": "心包郁热"
+    },
+    "亥时": {
+        "time_range": "21:00-23:00",
+        "meridian": "三焦经",
+        "trigger": "耳鸣/水肿",
+        "clinical_significance": "三焦气化不利"
+    }
+}
