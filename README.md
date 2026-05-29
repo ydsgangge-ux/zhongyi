@@ -82,8 +82,8 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/your-username/tcm-ai.git
-cd tcm-ai
+git clone https://github.com/ydsgangge-ux/Master-yizhe.git
+cd Master-yizhe
 
 # Windows：双击 start.bat
 # 或命令行：

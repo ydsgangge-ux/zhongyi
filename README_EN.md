@@ -85,8 +85,8 @@ Formula Matching → Safety Filter → Output Recommendation
 ### One-Click Launch
 
 ```bash
-git clone https://github.com/your-username/tcm-ai.git
-cd tcm-ai
+git clone https://github.com/ydsgangge-ux/Master-yizhe.git
+cd Master-yizhe
 
 # Windows: double-click start.bat
 # or command line:
