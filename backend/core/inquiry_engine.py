@@ -6,6 +6,11 @@ import httpx
 
 from .config import get_deepseek_config, get_active_llm
 from prompts.templates import get_prompt, PROMPTS
+from .gender_differentiation import (
+    calc_physiological_stage,
+    get_round0_intro,
+    STAGE_LABELS,
+)
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
 
@@ -42,17 +47,25 @@ class InquiryEngine:
         region: Optional[str] = None,
         age: Optional[int] = None,
         gender: Optional[str] = None,
+        birth_year: Optional[int] = None,
         season: Optional[str] = None,
         locale: str = "zh",
     ) -> dict:
+        stage = None
+        if gender and birth_year:
+            stage = calc_physiological_stage(gender, birth_year)
+
         session = {
             "session_id": session_id,
             "region": region,
             "age": age,
             "gender": gender,
+            "birth_year": birth_year,
+            "physiological_stage": stage,
             "season": season or self.get_current_season(),
             "locale": locale,
             "round": 0,
+            "round_0_done": not bool(gender),
             "messages": [],
             "inquiry_data": {
                 "chief_complaint": None,
@@ -63,6 +76,9 @@ class InquiryEngine:
                 "symptom_time": None,
             },
             "tongue_desc": None,
+            "menstrual_data": {},
+            "pregnancy_status": None,
+            "male_fertility_need": False,
             "created_at": datetime.now().isoformat(),
         }
         self.sessions[session_id] = session
@@ -73,13 +89,17 @@ class InquiryEngine:
 
     async def process_message(self, session: dict, user_message: str):
         locale = session.get("locale", "zh")
-        session["round"] += 1
-        round_num = session["round"]
 
-        if round_num <= 5:
-            prompt = self._build_inquiry_prompt(session, user_message, round_num, locale)
+        if not session.get("round_0_done") and session.get("gender"):
+            prompt = self._build_round0_prompt(session, user_message, locale)
+            session["round_0_done"] = True
         else:
-            prompt = self._build_followup_prompt(session, user_message, locale)
+            session["round"] += 1
+            round_num = session["round"]
+            if round_num <= 5:
+                prompt = self._build_inquiry_prompt(session, user_message, round_num, locale)
+            else:
+                prompt = self._build_followup_prompt(session, user_message, locale)
 
         async for chunk in self._call_llm_stream(prompt):
             session["messages"].append({"role": "assistant", "content": chunk})
@@ -87,6 +107,90 @@ class InquiryEngine:
 
     def _get_locale(self, session: dict) -> str:
         return session.get("locale", "zh")
+
+    def _build_round0_prompt(self, session: dict, user_message: str, locale: str) -> str:
+        gender = session.get("gender", "")
+        stage = session.get("physiological_stage", "")
+        stage_label = STAGE_LABELS.get(locale, STAGE_LABELS["zh"]).get(stage, "") if stage else ""
+
+        if gender == "女":
+            round_0_instruction = PROMPTS[locale]["round_0_female"]
+            gender_label = {"zh": "女性", "en": "Female"}.get(locale, "Female")
+        else:
+            round_0_instruction = PROMPTS[locale]["round_0_male"]
+            gender_label = {"zh": "男性", "en": "Male"}.get(locale, "Male")
+
+        conversation_history = self._format_messages(session["messages"], locale)
+
+        round_0_template = PROMPTS[locale]["inquiry_rounds"][0]
+        round_0_instruction_filled = round_0_template.format(
+            gender=gender_label,
+            round_0_instruction=round_0_instruction,
+        )
+
+        intro_msg = get_round0_intro(locale, gender, stage)
+
+        if locale == "zh":
+            prompt = f"""你是一位经验丰富的中医健康顾问，正在进行结构化多轮问诊。
+
+【时空背景】
+当前季节：{session['season']}
+用户地区：{session.get('region', '未知')}
+用户年龄：{session.get('age', '未知')}
+用户性别：{gender}，生理阶段：{stage_label}
+
+【开场白】
+在回应用户时，请在回复开头使用这段话：
+"{intro_msg}"
+
+【当前轮次】第零轮问诊（生理基线采集）
+{round_0_instruction_filled}
+
+【对话历史】
+{conversation_history}
+
+【用户最新回复】
+{user_message}
+
+【要求】
+- 在你回复的开头包含上面的开场白（可以自然地融入你的话中）
+- 然后根据Round 0的要求，温和地提出2-3个生理基线问题
+- 不要跳到后续的主诉追问
+- 语气温和专业，像有经验的老中医
+"""
+        else:
+            prompt = f"""You are an experienced TCM health advisor conducting a structured multi-round inquiry.
+
+IMPORTANT: You MUST respond in English only. Never use Chinese.
+
+[Context]
+Current season: {session['season']}
+User region: {session.get('region', 'Unknown')}
+User age: {session.get('age', 'Unknown')}
+User gender: {gender}, Physiological stage: {stage_label}
+
+[Opening Statement]
+At the beginning of your response, use this phrase:
+"{intro_msg}"
+
+[Current Round] Round 0 (Physiological Baseline)
+{round_0_instruction_filled}
+
+[Conversation History]
+{conversation_history}
+
+[User's Latest Response]
+{user_message}
+
+[Requirements]
+- IMPORTANT: You MUST respond in English only. Never use Chinese.
+- Include the opening statement at the beginning of your response (blend it naturally)
+- Then, based on Round 0 requirements, gently ask 2-3 physiological baseline questions
+- Do not skip ahead to chief complaint follow-up
+- Tone should be warm and professional
+"""
+
+        return prompt
 
     def _build_inquiry_prompt(self, session: dict, user_message: str, round_num: int, locale: str) -> str:
         lang_prompts = PROMPTS.get(locale, PROMPTS["zh"])

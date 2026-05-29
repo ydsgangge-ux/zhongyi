@@ -17,6 +17,8 @@ export default {
     genderSelect: '请选择',
     male: '男',
     female: '女',
+    birthYear: '出生年份',
+    birthYearPlaceholder: '请输入出生年份（如1990）',
     region: '所在地区',
     regionPlaceholder: '如：北京、广州',
     startBtn: '开始问诊',

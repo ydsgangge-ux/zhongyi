@@ -17,6 +17,10 @@
           </select>
         </div>
         <div class="form-group">
+          <label>{{ t('inquiry.birthYear') }}</label>
+          <input v-model="birthYear" type="text" inputmode="numeric" :placeholder="t('inquiry.birthYearPlaceholder')" />
+        </div>
+        <div class="form-group">
           <label>{{ t('inquiry.region') }}</label>
           <input v-model="region" type="text" :placeholder="t('inquiry.regionPlaceholder')" />
         </div>
@@ -89,6 +93,7 @@ const { t, locale } = useI18n()
 const sessionId = ref('')
 const age = ref('')
 const gender = ref('')
+const birthYear = ref('')
 const region = ref('')
 const season = ref('')
 const currentRound = ref(0)
@@ -115,6 +120,7 @@ async function startSession() {
     const data = await apiStartSession({
       age: age.value ? Number(age.value) : null,
       gender: gender.value,
+      birth_year: birthYear.value ? Number(birthYear.value) : null,
       region: region.value,
       locale: locale.value,
     })

@@ -17,6 +17,8 @@ export default {
     genderSelect: 'Select',
     male: 'Male',
     female: 'Female',
+    birthYear: 'Birth Year',
+    birthYearPlaceholder: 'Enter birth year (e.g. 1990)',
     region: 'Region',
     regionPlaceholder: 'e.g., Beijing, Guangzhou',
     startBtn: 'Start Inquiry',

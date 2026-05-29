@@ -30,6 +30,7 @@ class SessionStartRequest(BaseModel):
     region: Optional[str] = None
     age: Optional[int] = None
     gender: Optional[str] = None
+    birth_year: Optional[int] = None
     locale: str = "zh"
 
 
@@ -48,6 +49,7 @@ async def start_session(req: SessionStartRequest):
         region=req.region,
         age=req.age,
         gender=req.gender,
+        birth_year=req.birth_year,
         season=season,
         locale=locale,
     )

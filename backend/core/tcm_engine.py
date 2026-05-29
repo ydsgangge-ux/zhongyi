@@ -5,6 +5,13 @@ import httpx
 
 from .config import get_active_llm
 from .inquiry_engine import InquiryEngine
+from .gender_differentiation import (
+    get_weight_bias_context,
+    get_emotional_context,
+    get_wellness_differentiation,
+    get_safety_mode,
+    filter_herbs_by_safety,
+)
 from prompts.templates import get_prompt, PROMPTS
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
@@ -26,6 +33,28 @@ class TCMEngine:
         locale = session.get("locale", "zh")
         prompt = self._build_analysis_prompt(session, locale)
         result = await self._call_llm(prompt, locale)
+
+        safety_info = get_safety_mode(session)
+        if safety_info.get("safety_mode") and safety_info["safety_mode"] != "standard":
+            decoction = result.get("prescription", {}).get("decoction", "")
+            medicine = result.get("prescription", {}).get("patent_medicine", "")
+            diet = result.get("prescription", {}).get("diet_therapy", "")
+
+            cleaned_decoction, w1 = filter_herbs_by_safety(decoction, safety_info)
+            cleaned_medicine, w2 = filter_herbs_by_safety(medicine, safety_info)
+            cleaned_diet, w3 = filter_herbs_by_safety(diet, safety_info)
+
+            if cleaned_decoction != decoction:
+                result["prescription"]["decoction"] = cleaned_decoction
+            if cleaned_medicine != medicine:
+                result["prescription"]["patent_medicine"] = cleaned_medicine
+            if cleaned_diet != diet:
+                result["prescription"]["diet_therapy"] = cleaned_diet
+
+            all_warnings = w1 + w2 + w3
+            if all_warnings:
+                result["prescription"]["safety_warnings"] = all_warnings
+
         return result
 
     def _build_analysis_prompt(self, session: dict, locale: str) -> str:
@@ -34,6 +63,7 @@ class TCMEngine:
         region = session.get("region", "Unknown" if locale == "en" else "未知")
         age = session.get("age", "Unknown" if locale == "en" else "未知")
         gender = session.get("gender", "Unknown" if locale == "en" else "未知")
+        stage = session.get("physiological_stage")
         tongue_desc = session.get("tongue_desc", "Not provided" if locale == "en" else "未提供")
 
         season_info = self.season_weights.get(season, {})
@@ -136,9 +166,13 @@ class TCMEngine:
         else:
             four_diag = f"\n[Four Diagnostic Methods]\nInquiry summary: {messages_summary}\nTongue: {tongue_desc}"
 
+        weight_bias_section = get_weight_bias_context(gender, stage, locale) if gender and stage else ""
+        emotional_section = get_emotional_context(gender, locale) if gender else ""
+        wellness_section = get_wellness_differentiation(gender, stage, locale) if gender and stage else ""
+
         output_fmt = output_format_en if locale == "en" else output_format_zh
 
-        return base_prompt + context_section + user_info + four_diag + "\n\n" + output_fmt
+        return base_prompt + context_section + user_info + four_diag + weight_bias_section + emotional_section + wellness_section + "\n\n" + output_fmt
 
     def _format_messages(self, messages: list, locale: str) -> str:
         lang_prompts = PROMPTS.get(locale, PROMPTS["zh"])

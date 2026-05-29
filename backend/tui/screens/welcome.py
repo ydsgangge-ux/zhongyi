@@ -78,6 +78,10 @@ class WelcomeScreen(Screen):
                 )
 
             with Horizontal(classes="form-row"):
+                yield Static(t("welcome.birth_year"), classes="form-label")
+                yield Input(placeholder=t("welcome.birth_year_placeholder"), id="birth-year-input", max_length=4)
+
+            with Horizontal(classes="form-row"):
                 yield Static(t("welcome.region"), classes="form-label")
                 yield Input(placeholder=t("welcome.region_placeholder"), id="region-input")
 
@@ -96,6 +100,7 @@ class WelcomeScreen(Screen):
         age_str = self.query_one("#age-input", Input).value
         gender_raw = self.query_one("#gender-select", Select).value
         region = self.query_one("#region-input", Input).value
+        birth_year_str = self.query_one("#birth-year-input", Input).value
 
         try:
             age = int(age_str) if age_str else None
@@ -112,5 +117,6 @@ class WelcomeScreen(Screen):
             "age": age,
             "gender": gender,
             "region": region if region else None,
+            "birth_year": int(birth_year_str) if birth_year_str and birth_year_str.isdigit() else None,
         }
         self.app.start_inquiry(session_data)

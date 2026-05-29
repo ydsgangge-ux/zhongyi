@@ -105,6 +105,7 @@ class InquiryScreen(Screen):
             region=self.session_data.get("region"),
             age=self.session_data.get("age"),
             gender=self.session_data.get("gender"),
+            birth_year=self.session_data.get("birth_year"),
             season=season,
             locale=locale,
         )

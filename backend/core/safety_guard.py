@@ -2,12 +2,33 @@ import json
 import os
 from typing import Optional
 
+from .gender_differentiation import HERB_CATEGORIES, FEMALE_SAFETY_MODES, MALE_SAFETY_HERBS
+
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
 
 TOXIC_HERBS = [
     "附子", "川乌", "草乌", "马钱子", "斑蝥", "蟾酥",
     "砒霜", "雄黄", "轻粉", "红粉", "白降丹",
     "洋金花", "闹羊花", "雪上一枝蒿", "天南星",
+]
+
+PREGNANCY_FORBIDDEN = [
+    "麝香", "三棱", "莪术", "水蛭", "虻虫", "斑蝥",
+    "川乌", "草乌", "附子", "天南星", "马钱子",
+    "土鳖虫", "蜈蚣", "全蝎", "轻粉", "雄黄",
+]
+
+PREGNANCY_CAUTION = [
+    "桃仁", "红花", "牛膝", "川芎", "大黄", "枳实",
+    "芒硝", "番泻叶", "芦荟", "甘遂", "大戟", "芫花", "牵牛", "巴豆",
+]
+
+LACTATION_FORBIDDEN = [
+    "麦芽",
+]
+
+MALE_REPRODUCTIVE_HARMS = [
+    "雷公藤", "棉花根",
 ]
 
 
@@ -22,6 +43,55 @@ class SafetyGuard:
             with open(filepath, "r", encoding="utf-8") as f:
                 return json.load(f)
         return {}
+
+    def check_gender_safety(self, herbs_text: str, session: dict = None) -> dict:
+        warnings = []
+        if not session:
+            return {"safe": True, "warnings": []}
+
+        gender = session.get("gender", "")
+        pregnancy = session.get("pregnancy_status")
+        menstrual = session.get("menstrual_data") or {}
+        fertility_need = session.get("male_fertility_need", False)
+
+        if gender == "女":
+            if pregnancy in ("pregnant_early", "pregnant_late"):
+                for herb in PREGNANCY_FORBIDDEN:
+                    if herb in herbs_text:
+                        warnings.append(f"妊娠禁用：{herb}")
+                for herb in PREGNANCY_CAUTION:
+                    if herb in herbs_text:
+                        warnings.append(f"妊娠慎用：{herb}")
+
+            if pregnancy == "planning_pregnancy":
+                blood_herbs = HERB_CATEGORIES.get("blood_activating", []) + HERB_CATEGORIES.get("blood_breaking", [])
+                for herb in blood_herbs:
+                    if herb in herbs_text:
+                        warnings.append(f"备孕期慎用（活血）：{herb}")
+
+            if pregnancy == "breastfeeding":
+                for herb in LACTATION_FORBIDDEN:
+                    if herb in herbs_text:
+                        warnings.append(f"哺乳期禁用：{herb}")
+
+            if menstrual.get("is_menstruating"):
+                flow = menstrual.get("flow", "")
+                color = menstrual.get("color", "")
+                if flow in ("多", "heavy"):
+                    blood_activating = HERB_CATEGORIES.get("blood_activating", [])
+                    for herb in blood_activating:
+                        if herb in herbs_text:
+                            warnings.append(f"经期量多慎用（活血）：{herb}")
+
+        if gender == "男" and fertility_need:
+            for herb in MALE_REPRODUCTIVE_HARMS:
+                if herb in herbs_text:
+                    warnings.append(f"有生育需求慎用：{herb}（可能影响生殖功能）")
+
+        return {
+            "safe": len(warnings) == 0,
+            "warnings": warnings,
+        }
 
     def check_danger_signals(self, message: str) -> dict:
         matched = []
