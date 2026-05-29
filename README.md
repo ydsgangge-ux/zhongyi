@@ -86,6 +86,7 @@ git clone https://github.com/ydsgangge-ux/Master-yizhe.git
 cd Master-yizhe
 
 # Windows：双击 start.bat
+# Linux/macOS：./start.sh
 # 或命令行：
 python launcher.py
 ```
@@ -98,7 +99,10 @@ python launcher.py
 # 1. 后端环境
 cd backend
 python -m venv venv
-venv\Scripts\activate          # Windows
+# Windows:
+venv\Scripts\activate
+# Linux/macOS:
+source venv/bin/activate
 pip install -r requirements.txt
 
 # 2. 前端环境
@@ -115,6 +119,9 @@ python -m uvicorn main:app --host 0.0.0.0 --port 5328
 ### 启动 TUI 界面
 
 ```bash
+# Windows: 双击 start_tui.bat
+# Linux/macOS: ./start_tui.sh
+# 或直接：
 cd backend
 python run_tui.py
 ```
@@ -186,6 +193,9 @@ tcm-ai/
 │   └── vite.config.js
 ├── launcher.py                     # 一键启动脚本
 ├── start.bat                      # Windows 快捷启动
+├── start.sh                       # Linux/macOS 快捷启动
+├── start_tui.bat                  # Windows TUI 快捷启动
+├── start_tui.sh                   # Linux/macOS TUI 快捷启动
 ├── .gitignore
 ├── LICENSE
 └── README.md

@@ -89,6 +89,7 @@ git clone https://github.com/ydsgangge-ux/Master-yizhe.git
 cd Master-yizhe
 
 # Windows: double-click start.bat
+# Linux/macOS: ./start.sh
 # or command line:
 python launcher.py
 ```
@@ -101,8 +102,10 @@ The browser will open `http://localhost:5328` automatically.
 # 1. Backend
 cd backend
 python -m venv venv
-source venv/bin/activate         # macOS/Linux
-venv\Scripts\activate            # Windows
+# Linux/macOS:
+source venv/bin/activate
+# Windows:
+venv\Scripts\activate
 pip install -r requirements.txt
 
 # 2. Frontend
@@ -119,6 +122,9 @@ python -m uvicorn main:app --host 0.0.0.0 --port 5328
 ### Launch TUI
 
 ```bash
+# Windows: double-click start_tui.bat
+# Linux/macOS: ./start_tui.sh
+# or directly:
 cd backend
 python run_tui.py
 ```
@@ -190,6 +196,9 @@ tcm-ai/
 │   └── vite.config.js
 ├── launcher.py                    # One-click launcher
 ├── start.bat                      # Windows quick start
+├── start.sh                       # Linux/macOS quick start
+├── start_tui.bat                  # Windows TUI quick start
+├── start_tui.sh                   # Linux/macOS TUI quick start
 ├── .gitignore
 ├── LICENSE
 └── README.md
