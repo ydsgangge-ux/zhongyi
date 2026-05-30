@@ -31,6 +31,7 @@ class ClaudeConfigRequest(BaseModel):
 class SystemConfigRequest(BaseModel):
     region_default: Optional[str] = None
     save_history: Optional[bool] = None
+    single_model_mode: Optional[bool] = None
 
 
 @router.get("/settings")
