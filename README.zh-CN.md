@@ -1,34 +1,37 @@
-# 🌿 Master-yizhe（问诊）
+# 中医 AI 健康顾问 API
 
-> 基于漏斗辨证模型的 AI 中医健康顾问系统
+> 基于漏斗辨证模型的 AI 中医健康顾问系统 — 后端 API 服务，仅供开发者二次开发使用
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
-[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org)
 
 ---
 
-## ✨ 功能特性
-
-- **🏥 五轮结构化问诊** — 从主诉到生活背景的渐进式问诊协议
-- **🧠 中医辨证分析** — 八纲、脏腑、专项辨证 + 时空背景感知（季节/时辰/地域）
-- **⚕️ 西医参考** — 危险信号识别、可能疾病方向、检查建议
-- **💊 方剂推荐** — 经方优先 → 时方 → 现代方，经安全规则库过滤
-- **🖥️ 双界面** — Web 网页端 + TUI 终端界面
-- **🌍 多语言** — 中文 / English 一键切换，基于 vue-i18n
-- **🛡️ 安全机制** — 危险信号硬编码拦截、毒性药材屏蔽、十八反十九畏规则
-
-> ⚠️ **免责声明**：本系统为健康参考工具，不构成执业诊断。所有建议请结合专业医师意见。
+> **本项目仅提供后端 API 服务，不包含任何用户界面。** Web UI 和 TUI 均为待开发模块，需二次开发者自行实现。
 
 ---
 
-## 🏗️ 系统架构
+## 功能特性
+
+- **五轮结构化问诊** — 从主诉到生活背景的渐进式问诊协议
+- **中医辨证分析** — 八纲、脏腑、专项辨证 + 时空背景感知（季节/时辰/地域）
+- **西医参考** — 危险信号识别、可能疾病方向、检查建议
+- **方剂推荐** — 经方优先 → 时方 → 现代方，经安全规则库过滤
+- **RESTful API** — 完整 Swagger 文档位于 `/docs`
+- **安全机制** — 危险信号硬编码拦截、毒性药材屏蔽、十八反十九畏规则
+- **🖥️ Web 网页端** — ⏳ 待开发（建议技术栈：Vue 3 / React / 任意前端框架）
+- **🖥️ TUI 终端界面** — ⏳ 待开发（建议技术栈：Textual / Rich / 任意 TUI 框架）
+- **🌍 多语言** — ⏳ 待开发（后端已支持，前端需实现 i18n 切换）
+
+---
+
+## 系统架构
 
 ```
 ┌─────────────────────────────────────────────────┐
 │                  用户界面层                       │
 │    ┌──────────────┐    ┌──────────────────┐     │
-│    │   Web (Vue3)  │    │   TUI (Textual)   │     │
+│    │  Web (待开发)  │    │  TUI (待开发)     │     │
 │    └──────┬───────┘    └────────┬─────────┘     │
 ├───────────┼─────────────────────┼───────────────┤
 │           │      API 层         │               │
@@ -64,75 +67,48 @@
 
 ---
 
-## 📋 环境要求
+## 环境要求
 
 | 环境 | 要求 |
 |------|------|
 | Python | 3.11+ |
-| Node.js | 18+ |
 | 操作系统 | Windows / macOS / Linux |
 | API Key | [DeepSeek](https://platform.deepseek.com/)（必填） |
 | API Key | [Anthropic Claude](https://console.anthropic.com/)（可选） |
 
+> 只需一个 API Key（DeepSeek 或 Claude）即可运行。如只有一个 Key，可通过设置接口启用"单模型模式"，系统会自动将所有任务路由到可用的模型。
+
 ---
 
-## 🚀 快速开始
-
-### 一键启动（推荐）
+## 快速开始
 
 ```bash
 # 克隆仓库
 git clone https://github.com/ydsgangge-ux/Master-yizhe.git
-cd Master-yizhe
+cd Master-yizhe/backend
 
-# Windows：双击 start.bat
-# Linux/macOS：./start.sh
-# 或命令行：
-python launcher.py
-```
-
-启动后浏览器自动打开 `http://localhost:5328`。
-
-### 手动启动
-
-```bash
-# 1. 后端环境
-cd backend
+# 创建虚拟环境
 python -m venv venv
 # Windows:
 venv\Scripts\activate
 # Linux/macOS:
 source venv/bin/activate
+
+# 安装依赖
 pip install -r requirements.txt
 
-# 2. 前端环境
-cd ../frontend
-npm install
+# 配置 API Key — 编辑 data/config.json
+# 或启动后通过 /api/settings 接口配置
 
-# 3. 启动后端（自动提供前端页面）
-cd ../backend
-python -m uvicorn main:app --host 0.0.0.0 --port 5328
+# 启动 API 服务
+python -m uvicorn main:app --host 0.0.0.0 --port 8000
 
-# 浏览器访问 http://localhost:5328
-```
-
-### 启动 TUI 界面
-
-```bash
-# Windows: 双击 start_tui.bat
-# Linux/macOS: ./start_tui.sh
-# 或直接：
-cd backend
-python run_tui.py
+# 访问 http://localhost:8000/docs 查看 Swagger API 文档
 ```
 
 ### 配置 API Key
 
-首次启动后访问设置页 `http://localhost:5328/settings`，或在文件中编辑：
-
-**Web 设置页** — 推荐，图形界面操作
-
-**手动编辑配置文件** — `backend/data/config.json`
+编辑 `backend/data/config.json`：
 
 ```json
 {
@@ -149,11 +125,11 @@ python run_tui.py
 }
 ```
 
-> 💡 只需填写 DeepSeek API Key 即可使用全部核心功能。Claude 为可选增强项（用于舌象分析和西医参考）。
+> 只需填写 DeepSeek API Key 即可使用全部核心功能。Claude 为可选增强项（用于舌象分析和西医参考）。
 
 ---
 
-## 📁 项目结构
+## 项目结构
 
 ```
 tcm-ai/
@@ -163,16 +139,13 @@ tcm-ai/
 │   │   ├── tcm_engine.py          # 中医辨证引擎（漏斗模型）
 │   │   ├── western_engine.py      # 西医参考引擎
 │   │   ├── safety_guard.py        # 安全规则库
+│   │   ├── gender_differentiation.py  # 性别差异化辨证
 │   │   └── config.py              # 配置管理
 │   ├── routers/
 │   │   ├── inquiry.py             # 问诊 API
 │   │   ├── analysis.py            # 分析 API
 │   │   ├── health.py              # 健康记录 API
 │   │   └── settings.py            # 设置 API
-│   ├── tui/                       # 终端界面 (Textual)
-│   │   ├── app.py                 # TUI 应用入口
-│   │   ├── screens/               # 各功能屏幕
-│   │   └── widgets/               # 自定义组件
 │   ├── data/
 │   │   ├── danger_signals.json    # 危险信号清单
 │   │   ├── herb_conflicts.json    # 十八反/十九畏规则
@@ -182,20 +155,20 @@ tcm-ai/
 │   ├── models/                    # 数据模型
 │   ├── main.py                    # FastAPI 入口
 │   ├── requirements.txt           # Python 依赖
-│   └── run_tui.py                 # TUI 启动脚本
-├── frontend/
+│   └── Dockerfile                 # Docker 构建文件
+├── frontend/                      # ⏳ 待开发 — Web 前端
 │   ├── src/
-│   │   ├── views/                 # 页面（问诊/结果/历史/设置）
-│   │   ├── components/            # 组件（气泡/卡片等）
-│   │   ├── api/                   # API 调用封装
-│   │   └── assets/                # 样式资源
-│   ├── package.json
-│   └── vite.config.js
-├── launcher.py                     # 一键启动脚本
-├── start.bat                      # Windows 快捷启动
-├── start.sh                       # Linux/macOS 快捷启动
-├── start_tui.bat                  # Windows TUI 快捷启动
-├── start_tui.sh                   # Linux/macOS TUI 快捷启动
+│   │   ├── views/                 # ⏳ 页面（问诊/结果/历史/设置）
+│   │   ├── components/            # ⏳ 组件（气泡/卡片等）
+│   │   ├── api/                   # ⏳ API 调用封装
+│   │   ├── locales/               # ⏳ 多语言文件
+│   │   └── assets/                # ⏳ 样式资源
+│   ├── package.json               # ⏳
+│   └── vite.config.js             # ⏳
+├── backend/tui/                   # ⏳ 待开发 — TUI 终端界面
+│   ├── app.py                     # ⏳ TUI 应用入口
+│   ├── screens/                   # ⏳ 各功能屏幕
+│   └── widgets/                   # ⏳ 自定义组件
 ├── .gitignore
 ├── LICENSE
 └── README.md
@@ -203,39 +176,7 @@ tcm-ai/
 
 ---
 
-## ⚙️ 技术栈
-
-| 类别 | 技术 |
-|------|------|
-| 后端框架 | Python 3.11+ / FastAPI / Uvicorn |
-| 前端框架 | Vue 3 / Vite / Vue Router |
-| TUI 框架 | Textual |
-| 主力 LLM | DeepSeek API（问诊 + 中医辨证） |
-| 辅助 LLM | Anthropic Claude API（西医参考 + 舌象分析） |
-| HTTP 客户端 | httpx (async) / axios |
-| 数据存储 | SQLite |
-| 安全规则 | 本地 JSON 规则引擎 |
-
----
-
-## 🛡️ 安全机制
-
-| 机制 | 说明 |
-|------|------|
-| 🚨 危险信号拦截 | 胸痛、突发剧烈头痛、呕血等硬编码检测，不走 LLM 判断 |
-| 🚫 毒性药材屏蔽 | 附子、川乌等毒性药材不出现在推荐处方 |
-| 📋 十八反/十九畏 | 本地硬编码规则库，AI 输出前强制过滤 |
-| 🎯 置信度分级 | 🟢 高置信→给方案 / 🟡 中置信→继续追问 / 🔴 低置信→建议就医 |
-
----
-
-## 🔧 开发说明
-
-### API 文档
-
-启动服务后访问 `http://localhost:5328/docs` 查看 Swagger UI 自动生成的 API 文档。
-
-### 主要接口
+## API 接口
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -245,43 +186,104 @@ tcm-ai/
 | GET | `/api/settings` | 获取配置 |
 | POST | `/api/settings/deepseek` | 保存 DeepSeek 配置 |
 
----
-
-## 🌍 多语言 / i18n
-
-Web 端支持中文和 English 一键切换：
-
-- 点击导航栏右侧的 **「EN/中文」** 按钮即可切换语言
-- 语言选择自动保存到浏览器 localStorage，刷新不丢失
-- 基于 [vue-i18n](https://vue-i18n.intlify.org/) 实现
-
-**添加新语言：**
-
-1. 在 `frontend/src/locales/` 下新建语言文件（如 `ja.js`）
-2. 在 `frontend/src/locales/index.js` 中注册
-3. 在 `App.vue` 的切换按钮中添加选项
-
-**翻译覆盖范围：**
-
-| 模块 | 翻译项 |
-|------|--------|
-| 导航栏 | 标题、菜单、页脚 |
-| 问诊页面 | 表单标签、按钮、提示语 |
-| 聊天组件 | 角色名称（中医顾问/Me） |
-| 分析报告 | 所有字段标签、置信度等级 |
-| 设置页面 | 表单标签、状态提示、保存反馈 |
-| 历史记录 | 标题、空状态提示 |
-
-> ⚠️ 注意：LLM 返回的问诊对话内容为实时生成，不受界面语言影响。分析报告中的医学术语保持原文。
+启动服务后访问 `/docs` 可查看完整的 Swagger UI 交互式 API 文档。
 
 ---
 
-## 📄 License
+## 安全机制
+
+| 机制 | 说明 |
+|------|------|
+| 危险信号拦截 | 胸痛、突发剧烈头痛、呕血等硬编码检测，不走 LLM 判断 |
+| 毒性药材屏蔽 | 附子、川乌等毒性药材不出现在推荐处方 |
+| 十八反/十九畏 | 本地硬编码规则库，AI 输出前强制过滤 |
+| 置信度分级 | 🟢 高置信→给方案 / 🟡 中置信→继续追问 / 🔴 低置信→建议就医 |
+
+---
+
+## 技术栈
+
+| 类别 | 技术 |
+|------|------|
+| 后端框架 | Python 3.11+ / FastAPI / Uvicorn |
+| Web 前端 | ⏳ 待开发（建议 Vue 3 / React + Vite） |
+| TUI 框架 | ⏳ 待开发（建议 Textual） |
+| 主力 LLM | DeepSeek API（问诊 + 中医辨证） |
+| 辅助 LLM | Anthropic Claude API（西医参考 + 舌象分析） |
+| HTTP 客户端 | httpx (async) |
+| 数据存储 | SQLite |
+| 安全规则 | 本地 JSON 规则引擎 |
+| 多语言 | ⏳ 待开发（建议 vue-i18n） |
+
+---
+
+## 二次开发指南
+
+本项目为纯 API 后端，构建完整应用需要你：
+
+### Web 前端（待开发）
+
+建议实现以下页面和功能：
+
+| 页面 | 功能 | 对应 API |
+|------|------|---------|
+| 问诊页 | 聊天式对话界面，支持 SSE 流式显示 | `POST /api/inquiry/message` |
+| 分析结果页 | 辨证结果、方剂推荐、置信度展示 | `POST /api/inquiry/analyze` |
+| 历史记录页 | 历史问诊记录列表与详情 | `GET /api/health/records` |
+| 设置页 | API Key 配置、模型选择 | `GET/POST /api/settings` |
+
+建议技术栈：Vue 3 + Vite + Vue Router + vue-i18n，或 React / 任意前端框架。
+
+### TUI 终端界面（待开发）
+
+建议实现以下功能：
+
+| 功能 | 说明 |
+|------|------|
+| 欢迎屏 | 会话创建、语言选择 |
+| 问诊屏 | 聊天式对话，快捷键触发分析 |
+| 结果屏 | 辨证结果展示、方剂推荐 |
+| 设置屏 | API Key 配置 |
+
+建议技术栈：Python Textual 框架。
+
+### 开发要点
+
+1. **实现 SSE 处理** — 问诊接口使用 Server-Sent Events 进行流式响应
+2. **处理安全告警** — 解析并展示 API 返回的危险信号警告
+3. **多语言支持** — 后端已支持中英文，前端需实现 i18n 切换逻辑
+4. **添加免责声明** — 你必须在自己的前端中包含医疗免责声明（见下方）
+
+完整的 API 规范请参考启动后的 `/docs` Swagger 文档。
+
+---
+
+## 免责声明
+
+**重要提示 — 请仔细阅读**
+
+1. **本项目仅供技术研究和教育目的使用。** 不构成任何形式的医疗诊断、治疗建议或专业医疗意见。
+
+2. **本系统不是医疗器械。** 未经过任何医疗器械监管机构（包括但不限于国家药品监督管理局 NMPA、美国 FDA、欧盟 CE）的认证或批准。
+
+3. **所有分析结果仅供参考。** 绝不能作为任何医疗决策的唯一依据。请务必咨询执业医师进行诊断和治疗。
+
+4. **本系统生成的方剂推荐绝不可直接用于自行服药。** 错误使用中药方剂可能导致严重健康后果。
+
+5. **本项目的开发者和贡献者不承担任何责任**，对于因使用或依赖本系统而产生的任何直接或间接损害，包括但不限于健康恶化、不良反应、经济损失或其他后果。
+
+6. **将本 API 集成到自有应用中的用户需自行承担全部责任**，确保遵守所在司法管辖区的所有适用法律法规，包括但不限于医疗器械法规、数据隐私法和消费者保护法。
+
+7. **使用本软件即表示你确认并同意**已阅读、理解并接受本免责声明的所有条款。如不同意，请勿使用本软件。
+
+---
+
+## 许可证
 
 MIT License — 详见 [LICENSE](LICENSE) 文件。
 
 ---
 
 <p align="center">
-  <sub>健康参考用途 · For health reference only · 非执业诊断 · Not a substitute for professional medical advice</sub>
+  <sub>仅供技术研究 · 非医疗器械 · 不能替代专业医疗建议</sub>
 </p>
