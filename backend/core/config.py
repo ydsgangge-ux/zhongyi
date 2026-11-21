@@ -76,11 +76,19 @@ def get_system_config() -> dict:
     return load_config().get("system", DEFAULT_CONFIG["system"])
 
 
+def _is_masked_key(value) -> bool:
+    return isinstance(value, str) and "****" in value
+
+
 def update_deepseek_config(**kwargs) -> dict:
     config = load_config()
     for k, v in kwargs.items():
-        if v is not None:
-            config["deepseek"][k] = v
+        if v is None:
+            continue
+        # 前端回填的是脱敏 Key（sk-xxxx****），不能覆盖真实 Key
+        if k == "api_key" and _is_masked_key(v):
+            continue
+        config["deepseek"][k] = v
     save_config(config)
     return config["deepseek"]
 
@@ -88,8 +96,11 @@ def update_deepseek_config(**kwargs) -> dict:
 def update_claude_config(**kwargs) -> dict:
     config = load_config()
     for k, v in kwargs.items():
-        if v is not None:
-            config["claude"][k] = v
+        if v is None:
+            continue
+        if k == "api_key" and _is_masked_key(v):
+            continue
+        config["claude"][k] = v
     save_config(config)
     return config["claude"]
 

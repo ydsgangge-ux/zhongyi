@@ -1,11 +1,15 @@
+import asyncio
 import json
 import os
-from datetime import datetime
+import logging
+from datetime import date, datetime
 from typing import Optional
 import httpx
 
 from .config import get_deepseek_config, get_active_llm
 from prompts.templates import get_prompt, PROMPTS
+from models.database import save_session, load_session
+from .extraction import extract_structured_fields
 from .gender_differentiation import (
     calc_physiological_stage,
     get_round0_intro,
@@ -13,6 +17,32 @@ from .gender_differentiation import (
 )
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+
+SESSION_TTL_HOURS = 24
+ROUND0_MIN_TURNS = 2
+ROUND0_MAX_TURNS = 3
+logger = logging.getLogger(__name__)
+
+# 二十四节气（近似日期），用于辨证 prompt 的时空背景
+SOLAR_TERMS = [
+    (1, 6, "小寒"), (1, 20, "大寒"), (2, 4, "立春"), (2, 19, "雨水"),
+    (3, 6, "惊蛰"), (3, 21, "春分"), (4, 5, "清明"), (4, 20, "谷雨"),
+    (5, 6, "立夏"), (5, 21, "小满"), (6, 6, "芒种"), (6, 21, "夏至"),
+    (7, 7, "小暑"), (7, 23, "大暑"), (8, 8, "立秋"), (8, 23, "处暑"),
+    (9, 8, "白露"), (9, 23, "秋分"), (10, 8, "寒露"), (10, 23, "霜降"),
+    (11, 7, "立冬"), (11, 22, "小雪"), (12, 7, "大雪"), (12, 22, "冬至"),
+]
+
+
+def get_current_solar_term() -> str:
+    today = date.today()
+    current = SOLAR_TERMS[-1][2]
+    for month, day, name in SOLAR_TERMS:
+        if (today.month, today.day) >= (month, day):
+            current = name
+        else:
+            break
+    return current
 
 
 class InquiryEngine:
@@ -32,7 +62,7 @@ class InquiryEngine:
         month = datetime.now().month
         if month in [2, 3, 4]:
             return "春"
-        elif month in [5, 6, 7]:
+        elif month in [5, 6]:
             return "夏"
         elif month in [7, 8]:
             return "长夏"
@@ -66,6 +96,9 @@ class InquiryEngine:
             "locale": locale,
             "round": 0,
             "round_0_done": not bool(gender),
+            "round_0_turns": 0,
+            "field_extract_turn": 0,
+            "solar_term": get_current_solar_term(),
             "messages": [],
             "inquiry_data": {
                 "chief_complaint": None,
@@ -75,24 +108,64 @@ class InquiryEngine:
                 "lifestyle": None,
                 "symptom_time": None,
             },
+            "chief_complaint": None,
+            "symptom_time": None,
             "tongue_desc": None,
             "menstrual_data": {},
             "pregnancy_status": None,
-            "male_fertility_need": False,
+            "male_fertility_need": None,
+            "medications": None,
+            "allergies": None,
+            "past_history": None,
             "created_at": datetime.now().isoformat(),
         }
         self.sessions[session_id] = session
+        self.persist_session(session)
         return session
 
     def get_session(self, session_id: str) -> Optional[dict]:
-        return self.sessions.get(session_id)
+        session = self.sessions.get(session_id)
+        if session:
+            if self._is_expired(session):
+                self.sessions.pop(session_id, None)
+            else:
+                return session
+
+        session = load_session(session_id, SESSION_TTL_HOURS)
+        if session:
+            self.sessions[session_id] = session
+        return session
+
+    def persist_session(self, session: dict) -> None:
+        try:
+            save_session(session)
+        except Exception:
+            logger.exception("保存会话失败: %s", session.get("session_id"))
+
+    def cleanup_expired(self) -> int:
+        expired = [sid for sid, s in self.sessions.items() if self._is_expired(s)]
+        for sid in expired:
+            self.sessions.pop(sid, None)
+        return len(expired)
+
+    @staticmethod
+    def _is_expired(session: dict) -> bool:
+        created_at = session.get("created_at")
+        if not created_at:
+            return False
+        try:
+            age = datetime.now() - datetime.fromisoformat(created_at)
+        except ValueError:
+            return False
+        return age.total_seconds() > SESSION_TTL_HOURS * 3600
 
     async def process_message(self, session: dict, user_message: str):
         locale = session.get("locale", "zh")
+        in_round0 = not session.get("round_0_done") and session.get("gender")
 
-        if not session.get("round_0_done") and session.get("gender"):
+        if in_round0:
+            session["round_0_turns"] = session.get("round_0_turns", 0) + 1
             prompt = self._build_round0_prompt(session, user_message, locale)
-            session["round_0_done"] = True
         else:
             session["round"] += 1
             round_num = session["round"]
@@ -101,9 +174,35 @@ class InquiryEngine:
             else:
                 prompt = self._build_followup_prompt(session, user_message, locale)
 
-        async for chunk in self._call_llm_stream(prompt):
-            session["messages"].append({"role": "assistant", "content": chunk})
-            yield chunk
+        # 抽取与流式回复并发，用户侧无额外等待
+        extract_task = asyncio.create_task(extract_structured_fields(session))
+
+        full_content = ""
+        try:
+            async for chunk in self._call_llm_stream(prompt):
+                full_content += chunk
+                yield chunk
+        finally:
+            await extract_task
+
+        if full_content:
+            session["messages"].append({"role": "assistant", "content": full_content})
+        if in_round0 and self._round0_complete(session):
+            session["round_0_done"] = True
+        self.persist_session(session)
+
+    @staticmethod
+    def _round0_complete(session: dict) -> bool:
+        """基线轮次由字段完整度决定，而不是用户回一条就结束。"""
+        turns = session.get("round_0_turns", 0)
+        if turns < ROUND0_MIN_TURNS:
+            return False
+        if turns >= ROUND0_MAX_TURNS:
+            return True
+        if session.get("gender") == "女":
+            # 妊娠状态是安全字段，未明确前不进入主诉轮
+            return bool(session.get("pregnancy_status"))
+        return session.get("male_fertility_need") is not None
 
     def _get_locale(self, session: dict) -> str:
         return session.get("locale", "zh")
@@ -120,7 +219,7 @@ class InquiryEngine:
             round_0_instruction = PROMPTS[locale]["round_0_male"]
             gender_label = {"zh": "男性", "en": "Male"}.get(locale, "Male")
 
-        conversation_history = self._format_messages(session["messages"], locale)
+        conversation_history = self._conversation_history(session, locale)
 
         round_0_template = PROMPTS[locale]["inquiry_rounds"][0]
         round_0_instruction_filled = round_0_template.format(
@@ -129,6 +228,8 @@ class InquiryEngine:
         )
 
         intro_msg = get_round0_intro(locale, gender, stage)
+        collected = self._collected_round0_summary(session, locale)
+        goal = self._round0_goal(session, locale)
 
         if locale == "zh":
             prompt = f"""你是一位经验丰富的中医健康顾问，正在进行结构化多轮问诊。
@@ -143,8 +244,14 @@ class InquiryEngine:
 在回应用户时，请在回复开头使用这段话：
 "{intro_msg}"
 
-【当前轮次】第零轮问诊（生理基线采集）
+【当前轮次】第零轮问诊（主诉 + 生理/安全基线）
 {round_0_instruction_filled}
+
+【已采集信息】（不要重复询问）
+{collected}
+
+【本轮目标】
+{goal}
 
 【对话历史】
 {conversation_history}
@@ -154,9 +261,10 @@ class InquiryEngine:
 
 【要求】
 - 在你回复的开头包含上面的开场白（可以自然地融入你的话中）
-- 然后根据Round 0的要求，温和地提出2-3个生理基线问题
-- 不要跳到后续的主诉追问
+- 只问本轮目标里尚未采集的信息，最多2-3个问题
+- 已采集的信息不要重复确认
 - 语气温和专业，像有经验的老中医
+- 不要给出诊断结论
 """
         else:
             prompt = f"""You are an experienced TCM health advisor conducting a structured multi-round inquiry.
@@ -173,8 +281,14 @@ User gender: {gender}, Physiological stage: {stage_label}
 At the beginning of your response, use this phrase:
 "{intro_msg}"
 
-[Current Round] Round 0 (Physiological Baseline)
+[Current Round] Round 0 (Chief Complaint + Physiological/Safety Baseline)
 {round_0_instruction_filled}
+
+[Collected Information] (do not ask again)
+{collected}
+
+[Goal for This Turn]
+{goal}
 
 [Conversation History]
 {conversation_history}
@@ -185,18 +299,62 @@ At the beginning of your response, use this phrase:
 [Requirements]
 - IMPORTANT: You MUST respond in English only. Never use Chinese.
 - Include the opening statement at the beginning of your response (blend it naturally)
-- Then, based on Round 0 requirements, gently ask 2-3 physiological baseline questions
-- Do not skip ahead to chief complaint follow-up
+- Only ask about the missing items in this turn's goal, at most 2-3 questions
+- Do not re-confirm information already collected
 - Tone should be warm and professional
+- Do not give diagnosis conclusions
 """
 
         return prompt
+
+    @staticmethod
+    def _collected_round0_summary(session: dict, locale: str) -> str:
+        inquiry = session.get("inquiry_data") or {}
+        menstrual = session.get("menstrual_data") or {}
+        items = []
+        if inquiry.get("chief_complaint"):
+            items.append(f"主诉：{inquiry['chief_complaint']}")
+        if session.get("pregnancy_status"):
+            labels = {
+                "planning_pregnancy": "备孕中",
+                "pregnant_early": "孕早期",
+                "pregnant_late": "孕中晚期",
+                "breastfeeding": "哺乳期",
+                "none": "无怀孕/备孕/哺乳",
+            }
+            items.append(f"孕产状态：{labels.get(session['pregnancy_status'], session['pregnancy_status'])}")
+        for key, label in (("lmp", "末次月经"), ("cycle", "周期"), ("flow", "经量"),
+                           ("color", "经色"), ("symptoms", "经期症状")):
+            if menstrual.get(key):
+                items.append(f"{label}：{menstrual[key]}")
+        if session.get("male_fertility_need") is not None:
+            items.append("生育需求：" + ("有" if session["male_fertility_need"] else "无"))
+        if session.get("medications"):
+            items.append(f"服药史：{session['medications']}")
+        if not items:
+            return "暂无"
+        return "；".join(items)
+
+    @staticmethod
+    def _round0_goal(session: dict, locale: str) -> str:
+        inquiry = session.get("inquiry_data") or {}
+        # 主诉优先：还不知道哪里不舒服时，先问主诉
+        if not inquiry.get("chief_complaint"):
+            return "先请用户说明最主要的不适和持续时间（1-2个问题），暂不追问生理基线。"
+
+        if session.get("gender") == "女" and not session.get("pregnancy_status"):
+            return ("必须先确认妊娠状态（是否怀孕/备孕/哺乳），这直接决定用药安全；"
+                    "确认后再用1-2个问题补充尚未采集的月经信息。")
+
+        if session.get("gender") == "女":
+            return "补充尚未采集的月经与带下信息（量/色/伴随症状/带下），已采集的不要重复。"
+        return "补充尚未采集的肾系基线（精力、腰膝、睡眠、夜尿、生育需求），已采集的不要重复。"
 
     def _build_inquiry_prompt(self, session: dict, user_message: str, round_num: int, locale: str) -> str:
         lang_prompts = PROMPTS.get(locale, PROMPTS["zh"])
         round_instruction = lang_prompts["inquiry_rounds"].get(round_num, "")
 
-        conversation_history = self._format_messages(session["messages"], locale)
+        conversation_history = self._conversation_history(session, locale)
 
         return get_prompt(locale, "inquiry_system",
             season=session['season'],
@@ -210,13 +368,20 @@ At the beginning of your response, use this phrase:
         )
 
     def _build_followup_prompt(self, session: dict, user_message: str, locale: str) -> str:
-        conversation_history = self._format_messages(session["messages"], locale)
+        conversation_history = self._conversation_history(session, locale)
 
         return get_prompt(locale, "followup_system",
             season=session['season'],
             history=conversation_history,
             user_message=user_message,
         )
+
+    def _conversation_history(self, session: dict, locale: str) -> str:
+        """最新一条用户消息会单独传入，历史里去掉它避免重复。"""
+        messages = session["messages"]
+        if messages and messages[-1].get("role") == "user":
+            messages = messages[:-1]
+        return self._format_messages(messages, locale)
 
     def _format_messages(self, messages: list, locale: str) -> str:
         lang_prompts = PROMPTS.get(locale, PROMPTS["zh"])

@@ -3,64 +3,112 @@
         "心血管/神经系统": [
             {
                 "name": "突发剧烈胸痛",
-                "keywords": ["剧烈胸痛", "胸痛持续", "胸口剧痛", "胸闷痛"],
+                "name_en": "Sudden severe chest pain",
+                "keywords": ["剧烈胸痛", "胸痛持续", "胸口剧痛", "胸闷痛", "胸口像被压", "胸口压榨",
+                             "severe chest pain", "crushing chest pain", "chest pain radiating", "chest tightness"],
                 "action": "请立即拨打120急救电话，可能为心梗",
+                "action_en": "Call emergency services immediately; this may be a heart attack.",
                 "urgency": "high"
             },
             {
                 "name": "突发剧烈头痛",
-                "keywords": ["剧烈头痛", "一生最剧烈的头痛", "爆炸性头痛"],
+                "name_en": "Sudden severe headache",
+                "keywords": ["剧烈头痛", "一生最剧烈的头痛", "爆炸性头痛", "雷击样头痛",
+                             "worst headache", "thunderclap headache", "explosive headache"],
                 "action": "请立即就医，可能为脑出血或蛛网膜下腔出血",
+                "action_en": "Seek emergency care immediately; this may be a brain hemorrhage.",
                 "urgency": "high"
             },
             {
                 "name": "单侧肢体无力/麻木",
-                "keywords": ["半身麻木", "一侧无力", "单侧肢体无力", "手脚突然无力"],
+                "name_en": "One-sided weakness or numbness",
+                "keywords": ["半身麻木", "一侧无力", "单侧肢体无力", "手脚突然无力", "半边身子不听使唤",
+                             "one-sided weakness", "numbness on one side", "can't move one side"],
                 "action": "请立即就医，可能为脑卒中",
+                "action_en": "Seek emergency care immediately; this may be a stroke.",
                 "urgency": "high"
             },
             {
                 "name": "突发口角歪斜/言语不清",
-                "keywords": ["口角歪斜", "说话不清", "嘴歪", "言语不清"],
+                "name_en": "Sudden facial droop or slurred speech",
+                "keywords": ["口角歪斜", "说话不清", "嘴歪", "言语不清", "说不清楚话",
+                             "facial droop", "slurred speech", "can't speak clearly"],
                 "action": "请立即拨打120，可能为脑卒中",
+                "action_en": "Call emergency services immediately; this may be a stroke.",
                 "urgency": "high"
             },
             {
                 "name": "意识障碍/晕厥",
-                "keywords": ["晕厥", "意识不清", "昏迷", "突然晕倒"],
+                "name_en": "Loss of consciousness or fainting",
+                "keywords": ["晕厥", "意识不清", "昏迷", "突然晕倒", "叫不醒",
+                             "fainted", "passed out", "unconscious", "unresponsive"],
                 "action": "请立即拨打120急救电话",
+                "action_en": "Call emergency services immediately.",
                 "urgency": "high"
             }
         ],
         "呼吸/消化/其他": [
             {
                 "name": "呼吸困难（静息时）",
-                "keywords": ["呼吸困难", "喘不上气", "静息时喘", "呼吸急促"],
+                "name_en": "Difficulty breathing at rest",
+                "keywords": ["呼吸困难", "喘不上气", "静息时喘", "呼吸急促", "憋气", "透不过气",
+                             "can't breathe", "shortness of breath at rest", "severe breathlessness"],
                 "action": "请立即就医，可能为严重心肺疾病",
+                "action_en": "Seek emergency care immediately; this may be a severe heart or lung condition.",
                 "urgency": "high"
             },
             {
                 "name": "咯血/呕血/便血（大量）",
-                "keywords": ["咯血", "呕血", "大量便血", "吐血"],
+                "name_en": "Coughing or vomiting blood, heavy rectal bleeding",
+                "keywords": ["咯血", "呕血", "大量便血", "吐血", "咳血", "便血很多",
+                             "coughing blood", "vomiting blood", "heavy rectal bleeding"],
                 "action": "请立即就医，可能为消化道大出血或肺部疾病",
+                "action_en": "Seek emergency care immediately; this may be major gastrointestinal or lung bleeding.",
                 "urgency": "high"
             },
             {
                 "name": "高热39.5℃以上",
-                "keywords": ["高热39.5", "发烧39.5", "体温39.5", "高烧39.5"],
+                "name_en": "High fever above 39.5°C",
+                "keywords": ["高热39.5", "发烧39.5", "体温39.5", "高烧39.5", "烧到40度", "烧到39度多",
+                             "发烧四十度", "高烧不退", "fever 39.5", "fever of 40", "temperature 40"],
                 "action": "请立即就医，高热需查明原因",
+                "action_en": "Seek medical care immediately; the cause of the high fever needs investigation.",
                 "urgency": "high"
             },
             {
-                "name": "儿童高烧>38.5℃（3岁以下）",
-                "keywords": ["婴儿高烧", "幼儿发烧38.5", "3岁以下发烧"],
+                "name": "儿童高烧>38.5℃",
+                "name_en": "High fever in a young child",
+                "keywords": ["婴儿高烧", "幼儿发烧38.5", "3岁以下发烧", "孩子高烧", "宝宝高烧不退",
+                             "baby high fever", "infant fever", "child high fever"],
                 "action": "请立即带儿童就医，婴幼儿高热需紧急处理",
+                "action_en": "Take the child to emergency care immediately; high fever in infants needs urgent treatment.",
                 "urgency": "high"
             },
             {
                 "name": "严重腹痛（板状腹）",
-                "keywords": ["剧烈腹痛", "板状腹", "腹部僵硬", "腹痛拒按"],
+                "name_en": "Severe abdominal pain with a rigid abdomen",
+                "keywords": ["剧烈腹痛", "板状腹", "腹部僵硬", "腹痛拒按", "肚子硬得像木板",
+                             "severe abdominal pain", "rigid abdomen", "board-like abdomen"],
                 "action": "请立即就医，可能为急腹症",
+                "action_en": "Seek emergency care immediately; this may be an acute abdomen.",
+                "urgency": "high"
+            },
+            {
+                "name": "孕期出血/破水/剧烈腹痛",
+                "name_en": "Bleeding, fluid leak, or severe pain during pregnancy",
+                "keywords": ["孕期出血", "怀孕出血", "破水", "见红", "孕妇剧烈腹痛", "胎动减少",
+                             "bleeding during pregnancy", "water broke", "reduced fetal movement"],
+                "action": "请立即前往产科急诊，不要等待",
+                "action_en": "Go to obstetric emergency care immediately; do not wait.",
+                "urgency": "high"
+            },
+            {
+                "name": "自伤/自杀念头",
+                "name_en": "Thoughts of self-harm or suicide",
+                "keywords": ["想自杀", "不想活了", "想死", "自残", "活着没意思",
+                             "suicidal", "want to die", "kill myself", "self-harm"],
+                "action": "请立即联系当地心理危机干预热线或前往急诊，您并不孤单",
+                "action_en": "Contact a local crisis hotline or go to emergency care now. You are not alone.",
                 "urgency": "high"
             }
         ]

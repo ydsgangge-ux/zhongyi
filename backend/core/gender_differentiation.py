@@ -331,47 +331,9 @@ Exercise:
     return "\n".join(lines)
 
 
-def get_round0_prompt_female(locale: str = "zh") -> str:
-    if locale == "zh":
-        return """以下是女性生理基线采集（Round 0），目的是判断用户的气血状态，并非仅针对妇科疾病。请温和地询问以下信息（每次2-3个问题）：
-
-需采集的字段：末次月经时间（LMP）、月经周期（规律/提前/推后/不规律）、经量（多/正常/少/闭经）、经色（鲜红/暗红/淡红/有血块）、经期伴随症状（痛经/腰酸/乳胀/情绪变化）、带下状况（量/色/气味）、孕产史（未孕/已育/流产史）、当前状态（备孕中/已怀孕/哺乳期/无）。
-
-告知用户："以下问题是中医分析您体质和气血状态的关键背景，并非仅针对妇科疾病。" 
-
-围绝经期女性追加询问：潮热汗出频率、睡眠质量变化、情绪波动情况。"""
-    else:
-        return """This is the female physiological baseline collection (Round 0), aimed at assessing Qi and Blood status — NOT limited to gynecological issues. Please gently ask the following (2-3 questions at a time):
-
-Fields to collect: Last menstrual period (LMP), cycle regularity (regular/early/late/irregular), flow volume (heavy/normal/scanty/amenorrhea), color (bright red/dark red/pale/clots), accompanying symptoms (dysmenorrhea/lower backache/breast distension/mood changes), leukorrhea (amount/color/odor), obstetric history (nulliparous/women with children/miscarriage history), current state (trying to conceive/pregnant/breastfeeding/none).
-
-Tell the user: "These questions are key background for TCM analysis of your constitution and Qi-Blood status. They are not limited to gynecological concerns."
-
-For perimenopausal women, additionally ask: frequency of hot flashes and sweating, changes in sleep quality, and mood fluctuations."""
-
-
-def get_round0_prompt_male(locale: str = "zh") -> str:
-    if locale == "zh":
-        return """用户为男性，以下为肾系基线采集，目的是准确判断肾虚类型（阴虚/阳虚/精亏）。请温和询问以下信息（每次2-3个问题）：
-
-采集字段：精力体力主观评分（1-10）、腰膝酸软程度和时间、睡眠质量（入睡难/易醒/多梦）、有无夜尿频多、性功能状态（可选填，说明此项可跳过）。
-
-告知用户："为了准确判断肾虚的类型（阴虚/阳虚/精亏），需要了解一些相关情况。"
-
-中年男性追加：近期压力来源（工作/家庭/无明显）、饮酒频率、有无生育需求（影响后续用药过滤）。"""
-    else:
-        return """The user is male. This is the Kidney system baseline collection, aimed at accurately determining the type of Kidney deficiency (Yin/Yang/Essence). Please gently ask the following (2-3 questions at a time):
-
-Fields to collect: Subjective energy level (1-10), degree and timing of lower back/knee soreness, sleep quality (difficulty falling asleep/easily waking up/frequent dreams), presence of nocturia, sexual function status (optional, inform user this can be skipped).
-
-Tell the user: "To accurately determine the type of Kidney deficiency (Yin/Yang/Essence), I need to understand some related conditions."
-
-For middle-aged men, additionally ask: recent sources of stress (work/family/none obvious), frequency of alcohol consumption, and whether there is a need to preserve fertility (affects subsequent medication filtering)."""
-
-
-def get_safety_mode(session: dict) -> dict:
+def get_safety_mode(session: dict, locale: str = "zh") -> dict:
+    en = locale == "en"
     gender = session.get("gender")
-    stage = session.get("physiological_stage")
     menstrual = session.get("menstrual_data") or {}
     pregnancy = session.get("pregnancy_status")
 
@@ -380,26 +342,37 @@ def get_safety_mode(session: dict) -> dict:
     if not gender:
         return result
 
+    def label(key: str) -> str:
+        mode = FEMALE_SAFETY_MODES[key]
+        return mode["label_en"] if en else mode["label_zh"]
+
     if gender == "女":
-        if pregnancy == "pregnant_early":
-            result["mode"] = FEMALE_SAFETY_MODES["pregnant_early"]["label_zh"]
-            result["safety_mode"] = "pregnant_early"
-            result["warnings"].append("妊娠禁忌药全量屏蔽。请确认所有推荐药材均可安全使用。")
-            return result
-        if pregnancy == "pregnant_late":
-            result["mode"] = FEMALE_SAFETY_MODES["pregnant_late"]["label_zh"]
-            result["safety_mode"] = "pregnant_late"
-            result["warnings"].append("妊娠禁忌药全量屏蔽。请确认所有推荐药材均可安全使用。")
+        if pregnancy in ("pregnant_early", "pregnant_late"):
+            result["mode"] = label(pregnancy)
+            result["safety_mode"] = pregnancy
+            result["warnings"].append(
+                "All pregnancy-contraindicated herbs are blocked. Confirm every recommended herb is safe in pregnancy."
+                if en else
+                "妊娠禁忌药全量屏蔽。请确认所有推荐药材均可安全使用。"
+            )
             return result
         if pregnancy == "planning_pregnancy":
-            result["mode"] = FEMALE_SAFETY_MODES["planning_pregnancy"]["label_zh"]
+            result["mode"] = label("planning_pregnancy")
             result["safety_mode"] = "planning_pregnancy"
-            result["warnings"].append("禁活血破血类、禁大寒伤阳类、禁雷公藤、棉花根等。")
+            result["warnings"].append(
+                "Avoid blood-activating/breaking herbs, strongly cold herbs that damage Yang, and Tripterygium/Woolly cotton root."
+                if en else
+                "禁活血破血类、禁大寒伤阳类、禁雷公藤、棉花根等。"
+            )
             return result
         if pregnancy == "breastfeeding":
-            result["mode"] = FEMALE_SAFETY_MODES["breastfeeding"]["label_zh"]
+            result["mode"] = label("breastfeeding")
             result["safety_mode"] = "breastfeeding"
-            result["warnings"].append("禁大苦大寒类、禁强通经药、禁回乳药（麦芽等）。")
+            result["warnings"].append(
+                "Avoid strongly bitter-cold herbs, strong menstrual-moving herbs, and milk-suppressing herbs (e.g., malt)."
+                if en else
+                "禁大苦大寒类、禁强通经药、禁回乳药（麦芽等）。"
+            )
             return result
 
         menstrual_flow = menstrual.get("flow")
@@ -407,55 +380,41 @@ def get_safety_mode(session: dict) -> dict:
 
         if menstrual.get("is_menstruating"):
             if menstrual_flow in ("多", "heavy", "崩漏"):
-                result["mode"] = FEMALE_SAFETY_MODES["menstrual_heavy"]["label_zh"]
+                result["mode"] = label("menstrual_heavy")
                 result["safety_mode"] = "menstrual_heavy"
-                result["warnings"].append("经期量多，禁活血化瘀类。可用收涩止血类。")
+                result["warnings"].append(
+                    "Heavy menstrual flow: avoid blood-activating herbs; astringent hemostatics may be used."
+                    if en else
+                    "经期量多，禁活血化瘀类。可用收涩止血类。"
+                )
             elif menstrual_color in ("暗红", "dark red", "有血块", "with clots"):
-                result["mode"] = FEMALE_SAFETY_MODES["menstrual_blood_stasis"]["label_zh"]
+                result["mode"] = label("menstrual_blood_stasis")
                 result["safety_mode"] = "menstrual_blood_stasis"
-                result["warnings"].append("经期血瘀型，宜活血化瘀，禁收涩止血类。")
+                result["warnings"].append(
+                    "Menstrual blood-stasis pattern: blood-activating herbs are appropriate; avoid astringent hemostatics."
+                    if en else
+                    "经期血瘀型，宜活血化瘀，禁收涩止血类。"
+                )
             else:
-                result["mode"] = FEMALE_SAFETY_MODES["menstrual_normal"]["label_zh"]
+                result["mode"] = label("menstrual_normal")
                 result["safety_mode"] = "menstrual_normal"
-                result["warnings"].append("经期一般情况，禁大寒、禁峻下。")
+                result["warnings"].append(
+                    "Normal menstruation: avoid strongly cold herbs and drastic purgatives."
+                    if en else
+                    "经期一般情况，禁大寒、禁峻下。"
+                )
 
     if gender == "男":
-        fertility_need = session.get("male_fertility_need", False)
-        if fertility_need:
-            result["mode"] = "注意模式（男性生育需求）"
+        if session.get("male_fertility_need", False):
+            result["mode"] = "Caution Mode (Male Fertility)" if en else "注意模式（男性生育需求）"
             result["safety_mode"] = "male_fertility"
-            result["warnings"].append("有生育需求，以下药材长期使用可能影响生殖功能：雷公藤、棉花根、长期大量清热解毒类。")
+            result["warnings"].append(
+                "Fertility is desired. Long-term use of these herbs may impair reproductive function: Tripterygium wilfordii, Woolly cotton root, and prolonged high-dose heat-clearing herbs."
+                if en else
+                "有生育需求，以下药材长期使用可能影响生殖功能：雷公藤、棉花根、长期大量清热解毒类。"
+            )
 
     return result
-
-
-def filter_herbs_by_safety(herbs_text: str, safety_mode_info: dict) -> tuple:
-    if not safety_mode_info or safety_mode_info.get("mode") == "standard":
-        return herbs_text, []
-
-    mode_key = safety_mode_info.get("safety_mode")
-    if not mode_key or mode_key not in FEMALE_SAFETY_MODES:
-        return herbs_text, []
-
-    mode = FEMALE_SAFETY_MODES[mode_key]
-    forbidden_categories = mode.get("forbidden_categories", [])
-    forbidden_herbs = mode.get("forbidden_herbs", [])
-
-    warnings = []
-    cleaned = herbs_text
-    for herb in forbidden_herbs:
-        if herb in cleaned:
-            cleaned = cleaned.replace(herb, "[已过滤]")
-            warnings.append(f"已从处方中移除禁忌药材：{herb}")
-
-    for category in forbidden_categories:
-        cat_herbs = HERB_CATEGORIES.get(category, [])
-        for herb in cat_herbs:
-            if herb in cleaned:
-                cleaned = cleaned.replace(herb, "[已过滤]")
-                warnings.append(f"已从处方中移除禁忌药材：{herb}（{category}）")
-
-    return cleaned, warnings
 
 
 def get_round0_intro(locale: str, gender: str, stage: str = None) -> str:
@@ -463,19 +422,19 @@ def get_round0_intro(locale: str, gender: str, stage: str = None) -> str:
 
     if locale == "zh":
         if gender == "女":
-            base = "在开始详细问诊之前，我需要先了解一些关于您生理周期的基本情况。这些信息对中医辨证非常重要，能帮助我准确判断您的气血和冲任状态。"
+            base = "我先了解您最主要的不适，同时确认几项会影响用药安全的基本情况（如孕产状态），这样才能给出适合您的建议。"
             if stage == "perimenopausal":
-                base += " 同时，您正处于围绝经期，我还需要了解一些相关的身体变化。"
+                base += " 您正处于围绝经期，我也会顺带了解一些相关的身体变化。"
             return base
         else:
-            base = "在开始详细问诊之前，我需要了解一些关于您肾系和精力状态的基本情况。中医讲'男子以精为主'，这些信息能帮助我准确判断您的体质。"
+            base = "我先了解您最主要的不适，同时确认几项基础情况（精力、腰膝、睡眠等），这样才能准确判断您的体质。"
             return base
     else:
         if gender == "女":
-            base = "Before we begin the detailed inquiry, I need to understand some basics about your menstrual cycle. This information is crucial for TCM diagnosis and helps me accurately assess your Qi, Blood, and Chong-Ren status."
+            base = "Let me first understand your main concern, along with a few basics that affect medication safety (such as pregnancy status), so I can give you appropriate advice."
             if stage == "perimenopausal":
                 base += " Since you are in the perimenopausal stage, I'd also like to understand some related bodily changes."
             return base
         else:
-            base = "Before we begin the detailed inquiry, I need to understand some basics about your kidney system and energy level. In TCM, 'men are essence-based' — this information helps me accurately assess your constitution."
+            base = "Let me first understand your main concern, along with a few basics about your energy, back and knees, and sleep, so I can assess your constitution accurately."
             return base

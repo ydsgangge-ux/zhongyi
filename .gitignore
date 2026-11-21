@@ -7,3 +7,4 @@ tcm_ai.db
 *.log
 venv/
 node_modules/
+frontend/dist/

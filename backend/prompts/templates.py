@@ -25,17 +25,20 @@ PROMPTS = {
 
 【安全规则】
 - 毒性药材（附子/川乌等）禁止出现在推荐处方
+- 妊娠期禁用活血破血、攻下逐水及妊娠禁忌药材
+- 如用户正在服用抗凝药（华法林等）、降压药或降糖药，避免推荐有相互作用的药材（如丹参+华法林、含麻黄制剂+降压药）
+- 有明确过敏史的药物或食物不得推荐
 - 置信度低于60%时，标注为「需进一步问诊」
 - 所有方案附加「建议结合中医师面诊确认」
 """,
 
         "inquiry_rounds": {
-            0: "这是第零轮问诊（生理基线采集·{gender}）。{round_0_instruction}\n注意：本轮的2-3个问题是基线采集，不要跳到主诉采集。",
-            1: "这是第一轮问诊（主诉采集）。请询问：1)哪里不舒服？2)持续多久？3)起病方式（急/缓）？根据用户回复，温和追问，最多2-3个问题。注意：生理基线已在Round 0完成，无需再问月经/孕产/肾虚相关问题。",
-            2: "这是第二轮问诊（八纲定向）。根据用户主诉，请询问：1)怕冷还是怕热？2)症状什么时间最重/最轻？3)有无出汗？最多2-3个问题。",
-            3: "这是第三轮问诊（脏腑精准）。根据前两轮结果，动态生成针对相关脏腑的追问。例如：寒证→追问脾胃/肾阳；热证→追问肝火/心火/阴虚。最多2-3个问题。",
+            0: "这是第零轮问诊（主诉 + 生理/安全基线·{gender}）。{round_0_instruction}\n注意：先了解用户的主诉；生理基线只问尚未采集的字段，不要一次性全部抛出。",
+            1: "这是第一轮问诊（主诉深化）。主诉已在上轮采集，请围绕主诉追问：1)病程与起病缓急；2)加重/缓解因素；3)伴随症状。若妊娠状态等安全字段仍缺失，先补问。最多2-3个问题。",
+            2: "这是第二轮问诊（八纲定向）。请询问：1)怕冷还是怕热？2)有无出汗、口渴与饮水偏好？3)症状什么时间最重/最轻？最多2-3个问题。",
+            3: "这是第三轮问诊（脏腑精准）。根据前两轮结果，动态追问相关脏腑，并追问疼痛的部位与性质（头/身/胸/腹）。例如：寒证→追问脾胃/肾阳；热证→追问肝火/心火/阴虚。最多2-3个问题。",
             4: "这是第四轮问诊（望诊辅助）。请引导用户用文字描述以下内容：\n1)舌头：舌体颜色（淡红/偏红/偏白/暗紫）？舌体大小（正常/偏胖有齿痕/偏瘦）？\n2)舌苔：厚薄（薄/厚）？颜色（白/黄/灰黑）？质地（干燥/湿润/油腻）？\n3)面色：整体气色（红润/偏白/偏黄/暗沉）？眼周有无发黑？嘴唇颜色？\n如果用户不确定，可以提示：照镜子观察即可，大致描述即可，不必精确。最多2-3个问题。",
-            5: "这是第五轮问诊（生活背景）。请询问：1)睡眠质量？2)饮食偏好？3)情绪状态？4)大便情况？5)小便情况？最多2-3个问题。",
+            5: "这是第五轮问诊（生活背景与安全史）。请询问：1)睡眠质量？2)饮食偏好与口味？3)情绪状态？4)大便、小便情况？\n并必须补问：5)既往重要疾病/手术史；6)长期服用的药物（含西药与中药）；7)药物或食物过敏史。最多2-3个问题，安全史优先。",
         },
 
         "round_0_female": """用户是女性。这是第零轮问诊（生理基线采集）。
@@ -122,7 +125,7 @@ PROMPTS = {
 {symptoms}
 
 【任务】
-1. 识别是否存在危险信号（急症预警）
+1. 识别用户描述中是否已经出现危险信号（急症预警），未出现则留空
 2. 根据症状给出可能的西医疾病方向（仅供参考）
 3. 给出建议的辅助检查项目
 """,
@@ -160,17 +163,20 @@ Symptom peak time: {symptom_time}
 
 [Safety Rules]
 - Toxic herbs (Aconite/Sichuan Aconite etc.) must NOT appear in recommended prescriptions
+- During pregnancy, avoid blood-activating/blood-breaking, drastic purgatives, and pregnancy-contraindicated herbs
+- If the user is taking anticoagulants (e.g., warfarin), antihypertensives, or antidiabetics, avoid herbs with known interactions (e.g., Salvia + warfarin, Ephedra-containing formulas + antihypertensives)
+- Never recommend drugs or foods the user is allergic to
 - When confidence is below 60%, mark as "Requires further inquiry"
 - All recommendations must include "Please confirm with a licensed TCM practitioner"
 """,
 
         "inquiry_rounds": {
-            0: "This is Round 0 (Physiological Baseline · {gender}). {round_0_instruction}\nNote: These 2-3 questions are baseline collection. Do not skip to chief complaint collection.",
-            1: "This is Round 1 (Chief Complaint Collection). Ask about: 1) What's bothering you? 2) How long has it lasted? 3) Onset (sudden or gradual)? Based on their response, gently follow up with 2-3 questions max. Note: Physiological baseline was already completed in Round 0; do not ask again about menstruation/pregnancy/kidney deficiency.",
-            2: "This is Round 2 (Eight Principles Orientation). Based on the chief complaint, ask about: 1) Do you feel cold or hot? 2) When are symptoms worst/best? 3) Any sweating? Max 2-3 questions.",
-            3: "This is Round 3 (Organ Targeting). Based on previous rounds, generate targeted questions for relevant organs. E.g., Cold pattern → ask about Spleen/Stomach/Kidney Yang; Heat pattern → ask about Liver Fire/Heart Fire/Yin deficiency. Max 2-3 questions.",
+            0: "This is Round 0 (Chief Complaint + Physiological/Safety Baseline · {gender}). {round_0_instruction}\nNote: Start with the user's chief complaint; ask only baseline fields not yet collected, and never dump all questions at once.",
+            1: "This is Round 1 (Chief Complaint Deep Dive). The chief complaint was collected last round; follow up on: 1) duration and onset (sudden/gradual); 2) aggravating/relieving factors; 3) accompanying symptoms. If safety fields such as pregnancy status are still missing, ask first. Max 2-3 questions.",
+            2: "This is Round 2 (Eight Principles Orientation). Ask about: 1) cold or heat preference? 2) sweating, thirst and drinking preference? 3) when symptoms are worst/best? Max 2-3 questions.",
+            3: "This is Round 3 (Organ Targeting). Based on previous rounds, ask targeted questions about relevant organs, and about the location and nature of any pain (head/body/chest/abdomen). E.g., Cold pattern → Spleen/Stomach/Kidney Yang; Heat pattern → Liver Fire/Heart Fire/Yin deficiency. Max 2-3 questions.",
             4: "This is Round 4 (Visual Examination). Guide the user to describe in text:\n1) Tongue body color (normal pink/redder/pale/dark purple)? Size (normal/swollen with teeth marks/thin)?\n2) Tongue coating: thickness (thin/thick)? Color (white/yellow/grey-black)? Texture (dry/moist/greasy)?\n3) Complexion: overall (rosy/pale/yellowish/dull)? Dark circles around eyes? Lip color?\nIf uncertain, suggest: Just look in the mirror, a rough description is fine, no need to be precise. Max 2-3 questions.",
-            5: "This is Round 5 (Lifestyle Background). Ask about: 1) Sleep quality? 2) Diet preferences? 3) Emotional state? 4) Bowel movements? 5) Urination? Max 2-3 questions.",
+            5: "This is Round 5 (Lifestyle & Safety History). Ask about: 1) sleep quality? 2) diet preferences and taste? 3) emotional state? 4) bowel movements and urination?\nAlso must ask: 5) important past illnesses/surgeries; 6) long-term medications (Western and herbal); 7) drug or food allergies. Max 2-3 questions; safety history takes priority.",
         },
 
         "round_0_female": """The user is female. This is Round 0 (Physiological Baseline Collection).

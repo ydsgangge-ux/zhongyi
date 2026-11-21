@@ -1,10 +1,15 @@
 import json
 import os
+import logging
 import httpx
 
 from .config import get_active_llm, load_config
 from .inquiry_engine import InquiryEngine
 from prompts.templates import get_prompt, PROMPTS
+
+# 推理模型的思考过程也计入 max_tokens，需给正文留足额度。
+ANALYSIS_MAX_TOKENS = 8000
+logger = logging.getLogger(__name__)
 
 
 class WesternEngine:
@@ -29,6 +34,11 @@ class WesternEngine:
         )
 
         output_format_zh = """
+【危险信号判定规则】
+- 只列出用户描述中【已经实际出现】的危险信号，并在 signal 中引用用户的原话要点
+- 用户没有描述的危险信号一律不要列出；没有危险信号时必须返回空数组 []
+- 不要罗列教科书式的潜在危险清单
+
 【输出格式】请严格按以下JSON格式输出：
 {
     "danger_signals": [
@@ -59,6 +69,10 @@ class WesternEngine:
 }"""
 
         output_format_en = """
+[Danger Signal Rules]
+- Only list danger signals that the user has ACTUALLY described, and quote the key user wording in "signal"
+- Never list textbook red flags the user did not mention; return an empty array [] when none are present
+
 [Output Format] Please output strictly in the following JSON format:
 {
     "danger_signals": [
@@ -122,7 +136,7 @@ class WesternEngine:
                 "model": llm["model"],
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": 0.5,
-                "max_tokens": 1500,
+                "max_tokens": max(int(llm["max_tokens"] or 0), ANALYSIS_MAX_TOKENS),
             }
         else:
             headers = {
@@ -132,7 +146,7 @@ class WesternEngine:
             }
             payload = {
                 "model": llm["model"],
-                "max_tokens": llm["max_tokens"],
+                "max_tokens": max(int(llm["max_tokens"] or 0), 4000),
                 "messages": [{"role": "user", "content": prompt}],
             }
 
@@ -140,6 +154,10 @@ class WesternEngine:
             async with httpx.AsyncClient(timeout=60.0) as client:
                 response = await client.post(api_url, headers=headers, json=payload)
                 if response.status_code != 200:
+                    logger.warning(
+                        "西医参考分析请求失败 status=%s body=%s",
+                        response.status_code, response.text[:200],
+                    )
                     return self._empty_result()
                 result = response.json()
                 try:
@@ -149,8 +167,10 @@ class WesternEngine:
                         content = result["content"][0]["text"]
                     return self._parse_json(content)
                 except (json.JSONDecodeError, KeyError, IndexError):
+                    logger.warning("西医参考分析结果解析失败: %s", str(result)[:300])
                     return self._empty_result()
         except Exception:
+            logger.exception("西医参考分析异常")
             return self._empty_result()
 
     def _parse_json(self, content: str) -> dict:

@@ -1,5 +1,6 @@
 import json
 import os
+import logging
 from datetime import datetime
 import httpx
 
@@ -9,12 +10,15 @@ from .gender_differentiation import (
     get_weight_bias_context,
     get_emotional_context,
     get_wellness_differentiation,
-    get_safety_mode,
-    filter_herbs_by_safety,
 )
 from prompts.templates import get_prompt, PROMPTS
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+
+# 推理模型（如 deepseek-flash）的思考过程也计入 max_tokens，
+# 额度太小会导致正文为空、JSON 解析失败，这里给分析留足预算。
+ANALYSIS_MAX_TOKENS = 8000
+logger = logging.getLogger(__name__)
 
 
 class TCMEngine:
@@ -32,30 +36,8 @@ class TCMEngine:
     async def analyze(self, session: dict) -> dict:
         locale = session.get("locale", "zh")
         prompt = self._build_analysis_prompt(session, locale)
-        result = await self._call_llm(prompt, locale)
-
-        safety_info = get_safety_mode(session)
-        if safety_info.get("safety_mode") and safety_info["safety_mode"] != "standard":
-            decoction = result.get("prescription", {}).get("decoction", "")
-            medicine = result.get("prescription", {}).get("patent_medicine", "")
-            diet = result.get("prescription", {}).get("diet_therapy", "")
-
-            cleaned_decoction, w1 = filter_herbs_by_safety(decoction, safety_info)
-            cleaned_medicine, w2 = filter_herbs_by_safety(medicine, safety_info)
-            cleaned_diet, w3 = filter_herbs_by_safety(diet, safety_info)
-
-            if cleaned_decoction != decoction:
-                result["prescription"]["decoction"] = cleaned_decoction
-            if cleaned_medicine != medicine:
-                result["prescription"]["patent_medicine"] = cleaned_medicine
-            if cleaned_diet != diet:
-                result["prescription"]["diet_therapy"] = cleaned_diet
-
-            all_warnings = w1 + w2 + w3
-            if all_warnings:
-                result["prescription"]["safety_warnings"] = all_warnings
-
-        return result
+        # 安全性校验统一在 routers/analysis.py 完成，避免在这里直接改写处方文本
+        return await self._call_llm(prompt, locale)
 
     def _build_analysis_prompt(self, session: dict, locale: str) -> str:
         messages_summary = self._format_messages(session.get("messages", []), locale)
@@ -73,14 +55,19 @@ class TCMEngine:
         elif season_info and locale == "en":
             season_note = f"Dominant organ: {season_info.get('organ', 'Unknown')}, Common patterns: {season_info.get('common_patterns', 'Unknown')}, Caution: {season_info.get('caution', 'Unknown')}"
 
+        inquiry = session.get("inquiry_data") or {}
+        chief = inquiry.get("chief_complaint") or ("Not provided" if locale == "en" else "未提供")
+        symptom_time = inquiry.get("symptom_time") or ("Not provided" if locale == "en" else "未提供")
+        solar_term = session.get("solar_term") or ("Unknown" if locale == "en" else "未知")
+
         base_prompt = get_prompt(locale, "tcm_diagnosis",
             season=season,
-            solar_term="",
+            solar_term=solar_term,
             region=region,
-            chief_complaint=messages_summary,
+            chief_complaint=chief,
             inquiry_summary=messages_summary,
             tongue_desc=tongue_desc,
-            symptom_time=session.get('inquiry_data', {}).get('symptom_time', 'Not provided' if locale == 'en' else '未提供'),
+            symptom_time=symptom_time,
         )
 
         output_format_zh = """【输出格式】请严格按以下JSON格式输出：
@@ -153,6 +140,7 @@ class TCMEngine:
                 context_section = f"\n当前季节：{season}，{season_note}"
             else:
                 context_section = f"\nCurrent season: {season}. {season_note}"
+        context_section += self._shichen_note(locale)
 
         user_info = ""
         if locale == "zh":
@@ -160,11 +148,20 @@ class TCMEngine:
         else:
             user_info = f"\nUser region: {region}\nUser age: {age}, Gender: {gender}"
 
-        four_diag = ""
+        safety_history = ""
+        meds = session.get("medications")
+        allergies = session.get("allergies")
+        past = session.get("past_history")
         if locale == "zh":
-            four_diag = f"\n【四诊信息】\n问诊摘要：{messages_summary}\n舌象：{tongue_desc}"
+            safety_history = (
+                f"\n【安全背景】\n既往史：{past or '未提供'}\n"
+                f"长期服药：{meds or '未提供'}\n过敏史：{allergies or '未提供'}"
+            )
         else:
-            four_diag = f"\n[Four Diagnostic Methods]\nInquiry summary: {messages_summary}\nTongue: {tongue_desc}"
+            safety_history = (
+                f"\n[Safety Background]\nPast history: {past or 'Not provided'}\n"
+                f"Long-term medications: {meds or 'Not provided'}\nAllergies: {allergies or 'Not provided'}"
+            )
 
         weight_bias_section = get_weight_bias_context(gender, stage, locale) if gender and stage else ""
         emotional_section = get_emotional_context(gender, locale) if gender else ""
@@ -172,7 +169,18 @@ class TCMEngine:
 
         output_fmt = output_format_en if locale == "en" else output_format_zh
 
-        return base_prompt + context_section + user_info + four_diag + weight_bias_section + emotional_section + wellness_section + "\n\n" + output_fmt
+        return base_prompt + context_section + user_info + safety_history + weight_bias_section + emotional_section + wellness_section + "\n\n" + output_fmt
+
+    def _shichen_note(self, locale: str) -> str:
+        names = ["子时", "丑时", "寅时", "卯时", "辰时", "巳时",
+                 "午时", "未时", "申时", "酉时", "戌时", "亥时"]
+        name = names[((datetime.now().hour + 1) % 24) // 2]
+        info = self.shichen_map.get(name, {})
+        if not info:
+            return ""
+        if locale == "zh":
+            return f"\n当前时辰：{name}（{info.get('time_range', '')}，{info.get('meridian', '')}当令）"
+        return f"\nCurrent Chinese hour: {name} ({info.get('time_range', '')}, {info.get('meridian', '')} meridian)"
 
     def _format_messages(self, messages: list, locale: str) -> str:
         lang_prompts = PROMPTS.get(locale, PROMPTS["zh"])
@@ -211,7 +219,7 @@ class TCMEngine:
                 "model": llm["model"],
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": 0.5,
-                "max_tokens": 2000,
+                "max_tokens": max(int(llm["max_tokens"] or 0), ANALYSIS_MAX_TOKENS),
             }
         else:
             headers = {
@@ -221,7 +229,7 @@ class TCMEngine:
             }
             payload = {
                 "model": llm["model"],
-                "max_tokens": 2000,
+                "max_tokens": max(int(llm["max_tokens"] or 0), 4000),
                 "messages": [{"role": "user", "content": prompt}],
             }
 
@@ -234,6 +242,7 @@ class TCMEngine:
                     except Exception:
                         err = response.text[:200]
                     api_failed = f"API request failed [{response.status_code}]: {err}" if locale == "en" else f"API 请求失败 [{response.status_code}]：{err}"
+                    logger.warning("中医分析请求失败 status=%s body=%s", response.status_code, err)
                     return self._error_result(api_failed, locale)
                 result = response.json()
 
@@ -249,6 +258,11 @@ class TCMEngine:
                         content = content.split("```")[1].split("```")[0]
                     return json.loads(content.strip())
                 except (json.JSONDecodeError, KeyError, IndexError):
+                    finish_reason = result.get("choices", [{}])[0].get("finish_reason")
+                    logger.warning(
+                        "中医分析 JSON 解析失败 finish_reason=%s content=%s",
+                        finish_reason, content[:300],
+                    )
                     return {
                         "syndrome": {"primary": parse_failed_primary, "secondary": "", "confidence": 0},
                         "bagang": {"yin_yang": "-", "biao_li": "-", "han_re": "-", "xu_shi": "-"},
@@ -262,10 +276,13 @@ class TCMEngine:
                         "disclaimer": confirm_disclaimer,
                     }
         except httpx.ConnectError:
+            logger.error("中医分析连接失败")
             return self._error_result(err_connect, locale)
         except httpx.TimeoutException:
+            logger.error("中医分析请求超时")
             return self._error_result(err_timeout, locale)
         except Exception as e:
+            logger.exception("中医分析异常")
             err_msg = f"Request error: {type(e).__name__} - {str(e)[:100]}" if locale == "en" else f"请求异常：{type(e).__name__} - {str(e)[:100]}"
             return self._error_result(err_msg, locale)
 
